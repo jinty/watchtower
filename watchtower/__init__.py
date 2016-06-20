@@ -58,16 +58,21 @@ class CloudWatchLogHandler(handler_base_class):
     :param create_log_group:
         Create log group.  **True** by default.
     :type create_log_group: Boolean
+    :param join_timeout:
+        Maximum amount of seconds to wait for each queue handler thread to exit. This can speed up process shutdown.
+        **1.0** by default.
+    :type join_timeout: float (seconds)
     """
     END = 1
 
     def __init__(self, log_group=__name__, stream_name=None, use_queues=True, send_interval=60,
                  max_batch_size=1024*1024, max_batch_count=10000, boto3_session=None,
-                 create_log_group=True, *args, **kwargs):
+                 create_log_group=True, join_timeout=1.0, *args, **kwargs):
         handler_base_class.__init__(self, *args, **kwargs)
         self.log_group = log_group
         self.stream_name = stream_name
         self.use_queues = use_queues
+        self.join_timeout = join_timeout
         self.send_interval = send_interval
         self.max_batch_size = max_batch_size
         self.max_batch_count = max_batch_count
@@ -168,5 +173,5 @@ class CloudWatchLogHandler(handler_base_class):
         self.shutting_down = True
         for q in self.queues.values():
             q.put(self.END)
-        for q in self.queues.values():
-            q.join()
+        for t in self.threads:
+            t.join(self.join_timeout)
